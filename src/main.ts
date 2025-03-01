@@ -7,20 +7,45 @@ import {
   Setting,
 } from "obsidian";
 
+// Imports de BlockSuite
+import { Store } from "@blocksuite/store";
+import { BlockStd } from "@blocksuite/block-std";
+import { InlineManager } from "@blocksuite/inline";
+import * as Y from "yjs";
+import { WebrtcProvider } from "y-webrtc";
+import { IndexeddbPersistence } from "y-indexeddb";
+
 interface Synapse_3Settings {
   noteSetting: string;
+  collaboration: boolean;
+  room: string;
 }
 
 const DEFAULT_SETTINGS: Synapse_3Settings = {
   noteSetting: "",
+  collaboration: false,
+  room: "synapse-default-room"
 };
 
 export default class Synapse_3 extends Plugin {
   settings: Synapse_3Settings;
+  store: Store;
+  doc: Y.Doc;
+  provider: WebrtcProvider;
+  persistence: IndexeddbPersistence;
 
   async onload() {
     console.log("Chargement du plugin Synapse 3");
     await this.loadSettings();
+
+    // Initialisation de Yjs et BlockSuite
+    this.doc = new Y.Doc();
+    this.store = new Store(this.doc);
+    
+    if (this.settings.collaboration) {
+      this.provider = new WebrtcProvider(this.settings.room, this.doc);
+      this.persistence = new IndexeddbPersistence(this.settings.room, this.doc);
+    }
 
     this.addRibbonIcon("dice", "Synapse 3", () => {
       new Notice("Plugin Synapse 3 activé!");
@@ -60,6 +85,13 @@ export default class Synapse_3 extends Plugin {
 
   onunload() {
     console.log("Déchargement du plugin Synapse 3");
+    if (this.provider) {
+      this.provider.destroy();
+    }
+    if (this.persistence) {
+      this.persistence.destroy();
+    }
+    this.doc.destroy();
   }
 
   async loadSettings() {
@@ -110,6 +142,43 @@ class SynapseSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.noteSetting)
           .onChange(async (value) => {
             this.plugin.settings.noteSetting = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Collaboration en temps réel")
+      .setDesc("Activer la collaboration en temps réel")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.collaboration)
+          .onChange(async (value) => {
+            this.plugin.settings.collaboration = value;
+            await this.plugin.saveSettings();
+            
+            if (value) {
+              this.plugin.provider = new WebrtcProvider(this.plugin.settings.room, this.plugin.doc);
+              this.plugin.persistence = new IndexeddbPersistence(this.plugin.settings.room, this.plugin.doc);
+            } else {
+              if (this.plugin.provider) {
+                this.plugin.provider.destroy();
+              }
+              if (this.plugin.persistence) {
+                this.plugin.persistence.destroy();
+              }
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Nom de la salle")
+      .setDesc("Identifiant de la salle pour la collaboration")
+      .addText((text) =>
+        text
+          .setPlaceholder("synapse-default-room")
+          .setValue(this.plugin.settings.room)
+          .onChange(async (value) => {
+            this.plugin.settings.room = value;
             await this.plugin.saveSettings();
           })
       );

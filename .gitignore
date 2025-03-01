@@ -1,26 +1,21 @@
-# Dependencies
+# Node
 node_modules/
 
 # Build
 dist/
+lib/
+
+# Tests
+**/__tests__/
+**/__screenshots__/
+**/test/
+**/tests/
+**/integration-test/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Env
-.env
-
-# Logs
-*-error.log
-
-# Package
-package-lock.json
-yarn.lock
-
-# NPM
-.npmrc
